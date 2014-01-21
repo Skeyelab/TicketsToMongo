@@ -27,6 +27,10 @@ Installation
 
 3. Install TicketsToMongodb dependencies: `php composer.phar install`
 
+4. `cp config.php.default config.php`
+
+5. Edit config.php
+
 
 
 Usage 
