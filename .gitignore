@@ -5,3 +5,7 @@ config.php
 *.log
 
 composer.lock
+
+makeTestTix.php
+
+makeTestTix2.php
