@@ -1,6 +1,10 @@
 #!/usr/bin/env php
 <?php
 
+for ($t=0;$t<3;$t++) {
+	echo PHP_EOL;
+}
+
 include("bootstrap.php");
 use Monolog\Logger;
 use Monolog\Handler\StreamHandler;
@@ -8,16 +12,14 @@ use Monolog\Handler\StreamHandler;
 $start = time();
 
 $job = $pheanstalk->reserve();
-//$cb = new Couchbase("127.0.0.1:8091", "", "", "tickets");
 
-$log = new Logger('testcomments.php');
-$log->pushHandler(new StreamHandler(__DIR__ . '/log/data.log', Logger::WARNING));
+
+//$cb = new Couchbase("127.0.0.1:8091", "", "", "tickets");
 
 
 //echo $job->getData();
 
 do {
-
 	$jobObj = json_decode($job->getData());
 
 	echo "Starting:". $jobObj->id." | ";
@@ -34,46 +36,78 @@ do {
 	->send();
 
 	if ($response->code ==429) {
-		$myPush = new Push();
-		$myPush->setMessage('audits');
-		$myPush->setTitle('429'); // Optional
-		$pushManager->push($myPush);
-
-		$log->addWarning('Error 429: Line 33');
 
 		echo "Waiting ".$response->headers["Retry-After"]." seconds".PHP_EOL;
 		sleep($response->headers["Retry-After"]);
 		goto b;
 	}
 	elseif ($response->code == 404) {
-		$log->addWarning('Error 404: Line 43');
 
 		$pheanstalk->delete($job);
 		goto c;
 	}
 	elseif ($response->code != 200) {
 		echo "code: ".$response->code;
-		var_dump($jobObj);die();
+		var_dump($jobObj);die(PHP_EOL);
 	}
 
-	echo "Fetched, ";
+	if (isset($response->body->tickets[0])) {
+		$MongoTicket = (object) $response->body->tickets[0];
+		// var_dump($MongoTicket);
+		echo "Fetched, ";
+		foreach ($response->body->audits as $key=>$audit) {
+			$response->body->audits[$key]->created_at = new MongoDate(strtotime($response->body->audits[$key]->created_at));
 
-	$MongoTicket = (object) $response->body->tickets[0];
+		}
+		$MongoTicket->audits = $response->body->audits;
 
+	}
+	else {
+
+		echo "No Audits. Trying Ticket API: ";
+		f:
+		$response = \Httpful\Request::get('https://'.$jobObj->account.'/api/v2/tickets/'.$jobObj->id.'.json')
+		->authenticateWith($user.'/token', $pass)
+		// ->sendsJson()
+		->expectsJson()
+		->send();
+
+		if ($response->code ==429) {
+
+			echo "Waiting ".$response->headers["Retry-After"]." seconds".PHP_EOL;
+			sleep($response->headers["Retry-After"]);
+			goto f;
+		}
+		elseif ($response->code == 404) {
+			$log->addWarning('Error 404: Line 43');
+
+			$pheanstalk->delete($job);
+			goto c;
+		}
+		elseif ($response->code != 200) {
+			echo "code: ".$response->code;
+			var_dump($jobObj);die(PHP_EOL);
+		}
+
+		$MongoTicket = (object) $response->body->ticket;
+		echo "Fetched, ";
+
+	}
+
+
+	$MongoTicket->_id = $MongoTicket->id;
 
 	$MongoTicket->created_at = new MongoDate(strtotime($MongoTicket->created_at));
 	$MongoTicket->updated_at = new MongoDate(strtotime($MongoTicket->updated_at));
-
 	unset($MongoTicket->fields);
 
-	foreach ($response->body->audits as $key=>$audit) {
-		$response->body->audits[$key]->created_at = new MongoDate(strtotime($response->body->audits[$key]->created_at));
 
-	}
-	$MongoTicket->_id = $MongoTicket->id;
 
-	$MongoTicket->audits = $response->body->audits;
+
 	echo "Compiled | ";
+
+	// die(PHP_EOL);
+
 	echo "Comments: ";
 
 	d:
@@ -85,12 +119,6 @@ do {
 	->send();
 
 	if ($response->code ==429) {
-		$myPush = new Push();
-		$myPush->setMessage('comments');
-		$myPush->setTitle('429'); // Optional
-		$pushManager->push($myPush);
-
-		$log->addWarning('Error 429: Line 74');
 
 		echo "Waiting ".$response->headers["Retry-After"]." seconds".PHP_EOL;
 		sleep($response->headers["Retry-After"]);
@@ -104,7 +132,7 @@ do {
 	}
 	elseif ($response->code != 200) {
 		echo "code: ".$response->code;
-		var_dump($jobObj);die();
+		var_dump($jobObj);die(PHP_EOL);
 	}
 	echo "Fetched, ";
 
@@ -116,6 +144,8 @@ do {
 
 	$MongoTicket->comments = $MongoComments;
 	echo "Compiled | ";
+
+
 	echo "Metrics: ";
 	e:
 	unset($response);
@@ -126,26 +156,20 @@ do {
 	->send();
 
 	if ($response->code ==429) {
-		$myPush = new Push();
-		$myPush->setMessage('comments');
-		$myPush->setTitle('429'); // Optional
-		$pushManager->push($myPush);
-
-		$log->addWarning('Error 429: Line 74');
 
 		echo "Waiting ".$response->headers["Retry-After"]." seconds".PHP_EOL;
 		sleep($response->headers["Retry-After"]);
 		goto e;
 	}
 	elseif ($response->code == 404) {
-		$pheanstalk->delete($job);
-		// echo "*";
+		//$pheanstalk->delete($job);
+		echo "No Metrics. Skipped ";
 
-		goto c;
+		goto g;
 	}
 	elseif ($response->code != 200) {
 		echo "code: ".$response->code;
-		var_dump($jobObj);die();
+		var_dump($jobObj);die(PHP_EOL);
 	}
 	echo "Fetched, ";
 
@@ -167,7 +191,7 @@ do {
 
 
 	echo "Compiled | ";
-
+	g:
 	if ($collection->save($MongoTicket)) {
 		echo "Saved".PHP_EOL;
 
@@ -184,17 +208,10 @@ do {
 	c:
 
 	if (time()-$start >= 600) {
-		die();
+		die(PHP_EOL);
 	}
 
 }
 while ( $job = $pheanstalk->reserve());
-
-
-
-
-
-
-
 
 ?>
