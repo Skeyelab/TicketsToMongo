@@ -95,7 +95,7 @@ do {
 	}
 
 
-	$MongoTicket->_id = $MongoTicket->id;
+//	$MongoTicket->_id = $MongoTicket->id;
 
 	$MongoTicket->created_at = new MongoDate(strtotime($MongoTicket->created_at));
 	$MongoTicket->updated_at = new MongoDate(strtotime($MongoTicket->updated_at));
@@ -192,7 +192,7 @@ do {
 
 	echo "Compiled | ";
 	g:
-	if ($collection->save($MongoTicket)) {
+	if ($collection->update(array("id"=>$MongoTicket->id),$MongoTicket, array("upsert"=>true))) {
 		echo "Saved".PHP_EOL;
 
 
