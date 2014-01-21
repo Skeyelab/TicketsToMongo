@@ -1,0 +1,16 @@
+<?php
+$app = [
+
+  'database' => [
+    'mysql' => [
+        'server'   => 'localhost',
+        'port'     => '3306',
+        'database' => 'some_db',
+        'username' => 'rootuser',
+        'password' => 'rootuser'
+    ],
+  ],
+  'beanstalkd' => [
+  	'server'	=> 'server:11300',
+  ],
+];
