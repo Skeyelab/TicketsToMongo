@@ -8,11 +8,13 @@ This will extract various Zendesk elements to csv files
 Setup 
 ------
 
-This requires the following: *  *
+This requires the following:
 
-*Web server to receive API calls from Zendesk *
+-   Web server to receive API calls from Zendesk
 
-blah
+-   Mongodb
+
+
 
 
 
