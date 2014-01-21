@@ -11,7 +11,7 @@ $job = $pheanstalk->reserve();
 //$cb = new Couchbase("127.0.0.1:8091", "", "", "tickets");
 
 $log = new Logger('testcomments.php');
-$log->pushHandler(new StreamHandler(__DIR__ . '/data.log', Logger::WARNING));
+$log->pushHandler(new StreamHandler(__DIR__ . '/log/data.log', Logger::WARNING));
 
 
 //echo $job->getData();

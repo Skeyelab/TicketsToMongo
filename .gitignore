@@ -3,3 +3,5 @@
 config.php
 
 *.log
+
+composer.lock
