@@ -36,7 +36,7 @@ do {
 	->send();
 
 	if ($response->code ==429) {
-
+$pushManager->push(new Push()->setMessage('429')->setTitle('too fast!'));
 		echo "Waiting ".$response->headers["Retry-After"]." seconds".PHP_EOL;
 		sleep($response->headers["Retry-After"]);
 		goto b;
@@ -73,7 +73,7 @@ do {
 		->send();
 
 		if ($response->code ==429) {
-
+$pushManager->push(new Push()->setMessage('429')->setTitle('too fast!'));
 			echo "Waiting ".$response->headers["Retry-After"]." seconds".PHP_EOL;
 			sleep($response->headers["Retry-After"]);
 			goto f;
@@ -119,7 +119,7 @@ do {
 	->send();
 
 	if ($response->code ==429) {
-
+$pushManager->push(new Push()->setMessage('429')->setTitle('too fast!'));
 		echo "Waiting ".$response->headers["Retry-After"]." seconds".PHP_EOL;
 		sleep($response->headers["Retry-After"]);
 		goto d;
@@ -156,7 +156,7 @@ do {
 	->send();
 
 	if ($response->code ==429) {
-
+$pushManager->push(new Push()->setMessage('429')->setTitle('too fast!'));
 		echo "Waiting ".$response->headers["Retry-After"]." seconds".PHP_EOL;
 		sleep($response->headers["Retry-After"]);
 		goto e;
