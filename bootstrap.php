@@ -31,7 +31,9 @@ $pheanstalk->useTube('audits-mongo-test');
 
 
 //config mongodb connection
+//$m = new MongoClient("mongodb://cs-ops-mac-mini.group.on:27016");
 $m = new MongoClient();
+
 // select a database
 $db = $m->Zendesk;
 // select a collection (analogous to a relational database's table)

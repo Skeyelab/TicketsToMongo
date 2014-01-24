@@ -8,6 +8,9 @@ for ($t=0;$t<3;$t++) {
 include("bootstrap.php");
 use Monolog\Logger;
 use Monolog\Handler\StreamHandler;
+use Sly\PushOver\Model\Push;
+use Sly\PushOver\PushManager;
+
 
 $start = time();
 
@@ -32,11 +35,18 @@ do {
 	$response = \Httpful\Request::get('https://'.$jobObj->account.'/api/v2/tickets/'.$jobObj->id.'/audits.json?include=tickets')
 	->authenticateWith($user.'/token', $pass)
 	// ->sendsJson()
-	->expectsJson()
+	//->expectsJson()
 	->send();
+	
+	print_r($response->code);
 
 	if ($response->code ==429) {
-$pushManager->push(new Push()->setMessage('429')->setTitle('too fast!'));
+
+/*$myPush = new Push();
+$myPush->setMessage('429');
+$myPush->setTitle('too fast!');
+$pushManager->push($myPush);
+*/
 		echo "Waiting ".$response->headers["Retry-After"]." seconds".PHP_EOL;
 		sleep($response->headers["Retry-After"]);
 		goto b;
@@ -69,11 +79,17 @@ $pushManager->push(new Push()->setMessage('429')->setTitle('too fast!'));
 		$response = \Httpful\Request::get('https://'.$jobObj->account.'/api/v2/tickets/'.$jobObj->id.'.json')
 		->authenticateWith($user.'/token', $pass)
 		// ->sendsJson()
-		->expectsJson()
+//		->expectsJson()
 		->send();
+	print_r($response->code);
 
 		if ($response->code ==429) {
-$pushManager->push(new Push()->setMessage('429')->setTitle('too fast!'));
+
+/*$myPush = new Push();
+$myPush->setMessage('429');
+$myPush->setTitle('too fast!');
+$pushManager->push($myPush);
+*/
 			echo "Waiting ".$response->headers["Retry-After"]." seconds".PHP_EOL;
 			sleep($response->headers["Retry-After"]);
 			goto f;
@@ -115,11 +131,17 @@ $pushManager->push(new Push()->setMessage('429')->setTitle('too fast!'));
 	$response = \Httpful\Request::get('https://'.$jobObj->account.'/api/v2/tickets/'.$jobObj->id.'/comments.json')
 	->authenticateWith($user.'/token', $pass)
 	// ->sendsJson()
-	->expectsJson()
+//	->expectsJson()
 	->send();
+	print_r($response->code);
 
 	if ($response->code ==429) {
-$pushManager->push(new Push()->setMessage('429')->setTitle('too fast!'));
+
+/*$myPush = new Push();
+$myPush->setMessage('429');
+$myPush->setTitle('too fast!');
+$pushManager->push($myPush);
+*/
 		echo "Waiting ".$response->headers["Retry-After"]." seconds".PHP_EOL;
 		sleep($response->headers["Retry-After"]);
 		goto d;
@@ -152,11 +174,17 @@ $pushManager->push(new Push()->setMessage('429')->setTitle('too fast!'));
 	$response = \Httpful\Request::get('https://'.$jobObj->account.'/api/v2/tickets/'.$jobObj->id.'/metrics.json')
 	->authenticateWith($user.'/token', $pass)
 	// ->sendsJson()
-	->expectsJson()
+//	->expectsJson()
 	->send();
+	print_r($response->code);
 
 	if ($response->code ==429) {
-$pushManager->push(new Push()->setMessage('429')->setTitle('too fast!'));
+
+/*$myPush = new Push();
+$myPush->setMessage('429');
+$myPush->setTitle('too fast!');
+$pushManager->push($myPush);
+*/
 		echo "Waiting ".$response->headers["Retry-After"]." seconds".PHP_EOL;
 		sleep($response->headers["Retry-After"]);
 		goto e;
