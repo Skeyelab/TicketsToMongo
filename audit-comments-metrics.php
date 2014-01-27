@@ -11,6 +11,7 @@ use Monolog\Handler\StreamHandler;
 use Sly\PushOver\Model\Push;
 use Sly\PushOver\PushManager;
 
+$skipThese = array();
 
 $start = time();
 
@@ -23,12 +24,42 @@ $job = $pheanstalk->reserve();
 //echo $job->getData();
 
 do {
+//var_dump($pheanstalk->peek($pheanstalk->peekDelayed()->getId()));
+	$delay = 3;
+	$diff = 3;
+
 	$jobObj = json_decode($job->getData());
 
-	echo "Starting:". $jobObj->id." | ";
+
+	echo "Starting: ". $jobObj->account." : ".$jobObj->id." | ";
+
+	if (in_array($jobObj->account, $skipThese)) {
+
+		$found = array_search($jobObj->account, $skipThese);
+		$diff =  $found - time();
+		$diff = abs($diff);
+		echo "Skipping for $diff".PHP_EOL;
+
+		if ($diff <= 1) {
+			unset ($skipThese[$found]);
+			$diff = 3;
+		}
+
+		$pheanstalk->release($job, 2500,abs($diff));
+		goto c;
+	}
+
 
 	echo "Audits: ";
 
+	if ($jobObj->account == "kontakt.groupon.at" || $jobObj->account == "kontakt.groupon.ch") {
+		$pheanstalk->delete($job);
+		goto c;
+	}
+
+	if ($jobObj->account == "support.groupon.com") {
+		$jobObj->account = "groupon.zendesk.com";
+	}
 	$user = $desks[$jobObj->account]['api_user'];
 	$pass = $desks[$jobObj->account]['api_key'];
 	b:
@@ -37,22 +68,22 @@ do {
 	// ->sendsJson()
 	//->expectsJson()
 	->send();
-	
+
 	print_r($response->code);
 
 	if ($response->code ==429) {
+		$delay = $response->headers["Retry-After"];
+		$pheanstalk->release($job, 2500, abs($delay));
 
-/*$myPush = new Push();
-$myPush->setMessage('429');
-$myPush->setTitle('too fast!');
-$pushManager->push($myPush);
-*/
-		echo "Waiting ".$response->headers["Retry-After"]." seconds".PHP_EOL;
-		sleep($response->headers["Retry-After"]);
-		goto b;
+		$skipThese[time() + $response->headers["Retry-After"]] = $jobObj->account;
+
+		echo " Releasing ".PHP_EOL;
+		//  echo " Waiting: ".$response->headers["Retry-After"].PHP_EOL;
+		//  sleep($response->headers["Retry-After"]);
+		goto c;
 	}
 	elseif ($response->code == 404) {
-
+		echo PHP_EOL;
 		$pheanstalk->delete($job);
 		goto c;
 	}
@@ -64,7 +95,7 @@ $pushManager->push($myPush);
 	if (isset($response->body->tickets[0])) {
 		$MongoTicket = (object) $response->body->tickets[0];
 		// var_dump($MongoTicket);
-		echo "Fetched, ";
+		echo " Fetched, ";
 		foreach ($response->body->audits as $key=>$audit) {
 			$response->body->audits[$key]->created_at = new MongoDate(strtotime($response->body->audits[$key]->created_at));
 
@@ -79,25 +110,23 @@ $pushManager->push($myPush);
 		$response = \Httpful\Request::get('https://'.$jobObj->account.'/api/v2/tickets/'.$jobObj->id.'.json')
 		->authenticateWith($user.'/token', $pass)
 		// ->sendsJson()
-//		->expectsJson()
+		//  ->expectsJson()
 		->send();
-	print_r($response->code);
+		print_r($response->code);
 
 		if ($response->code ==429) {
+			$delay = $response->headers["Retry-After"];
+			$pheanstalk->release($job, 2500, abs($delay));
 
-/*$myPush = new Push();
-$myPush->setMessage('429');
-$myPush->setTitle('too fast!');
-$pushManager->push($myPush);
-*/
-			echo "Waiting ".$response->headers["Retry-After"]." seconds".PHP_EOL;
-			sleep($response->headers["Retry-After"]);
-			goto f;
+			$skipThese[time() + $delay] = $jobObj->account;
+			$pheanstalk->release($job, 2500, abs($delay));
+			echo " Releasing ".PHP_EOL;
+			goto c;
 		}
 		elseif ($response->code == 404) {
 			$log->addWarning('Error 404: Line 43');
+			echo PHP_EOL;
 
-			$pheanstalk->delete($job);
 			goto c;
 		}
 		elseif ($response->code != 200) {
@@ -106,12 +135,12 @@ $pushManager->push($myPush);
 		}
 
 		$MongoTicket = (object) $response->body->ticket;
-		echo "Fetched, ";
+		echo " Fetched, ";
 
 	}
 
 
-//	$MongoTicket->_id = $MongoTicket->id;
+	// $MongoTicket->_id = $MongoTicket->id;
 
 	$MongoTicket->created_at = new MongoDate(strtotime($MongoTicket->created_at));
 	$MongoTicket->updated_at = new MongoDate(strtotime($MongoTicket->updated_at));
@@ -131,24 +160,24 @@ $pushManager->push($myPush);
 	$response = \Httpful\Request::get('https://'.$jobObj->account.'/api/v2/tickets/'.$jobObj->id.'/comments.json')
 	->authenticateWith($user.'/token', $pass)
 	// ->sendsJson()
-//	->expectsJson()
+	// ->expectsJson()
 	->send();
 	print_r($response->code);
 
 	if ($response->code ==429) {
+		$delay = $response->headers["Retry-After"];
+		$pheanstalk->release($job, 2500, abs($delay));
+		echo " Releasing ".PHP_EOL;
+		$skipThese[time() + $response->headers["Retry-After"]] = $jobObj->account;
 
-/*$myPush = new Push();
-$myPush->setMessage('429');
-$myPush->setTitle('too fast!');
-$pushManager->push($myPush);
-*/
-		echo "Waiting ".$response->headers["Retry-After"]." seconds".PHP_EOL;
-		sleep($response->headers["Retry-After"]);
-		goto d;
+		//  echo " Waiting: ".$response->headers["Retry-After"].PHP_EOL;
+		//  sleep($response->headers["Retry-After"]);
+		goto c;
 	}
 	elseif ($response->code == 404) {
 		$pheanstalk->delete($job);
 		// echo "*";
+		echo PHP_EOL;
 
 		goto c;
 	}
@@ -156,7 +185,7 @@ $pushManager->push($myPush);
 		echo "code: ".$response->code;
 		var_dump($jobObj);die(PHP_EOL);
 	}
-	echo "Fetched, ";
+	echo " Fetched, ";
 
 	foreach ($response->body->comments as $key=>$comment) {
 		$response->body->comments[$key]->created_at = new MongoDate(strtotime($response->body->comments[$key]->created_at));
@@ -174,24 +203,24 @@ $pushManager->push($myPush);
 	$response = \Httpful\Request::get('https://'.$jobObj->account.'/api/v2/tickets/'.$jobObj->id.'/metrics.json')
 	->authenticateWith($user.'/token', $pass)
 	// ->sendsJson()
-//	->expectsJson()
+	// ->expectsJson()
 	->send();
 	print_r($response->code);
 
 	if ($response->code ==429) {
+		$delay = $response->headers["Retry-After"];
+		$pheanstalk->release($job, 2500, abs($delay));
+		echo " Releasing ".PHP_EOL;
 
-/*$myPush = new Push();
-$myPush->setMessage('429');
-$myPush->setTitle('too fast!');
-$pushManager->push($myPush);
-*/
-		echo "Waiting ".$response->headers["Retry-After"]." seconds".PHP_EOL;
-		sleep($response->headers["Retry-After"]);
-		goto e;
+		$skipThese[time() + $response->headers["Retry-After"]] = $jobObj->account;
+		//  echo " Waiting: ".$response->headers["Retry-After"].PHP_EOL;
+		//  sleep($response->headers["Retry-After"]);
+		goto c;
 	}
 	elseif ($response->code == 404) {
 		//$pheanstalk->delete($job);
 		echo "No Metrics. Skipped ";
+		echo PHP_EOL;
 
 		goto g;
 	}
@@ -199,7 +228,7 @@ $pushManager->push($myPush);
 		echo "code: ".$response->code;
 		var_dump($jobObj);die(PHP_EOL);
 	}
-	echo "Fetched, ";
+	echo " Fetched, ";
 
 	unset($response->body->ticket_metric-> url);
 	unset($response->body->ticket_metric-> id);
@@ -220,6 +249,14 @@ $pushManager->push($myPush);
 
 	echo "Compiled | ";
 	g:
+
+
+	// settype($jobObj->account, "string");
+	$dbName = str_replace(".", "-", $jobObj->account) ;
+	$db = $m-> $dbName;
+	// var_dump($db);die(PHP_EOL);
+	$collection = $db->tickets;
+
 	if ($collection->update(array("id"=>$MongoTicket->id),$MongoTicket, array("upsert"=>true))) {
 		echo "Saved".PHP_EOL;
 
