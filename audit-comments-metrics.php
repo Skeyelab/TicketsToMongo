@@ -1,11 +1,13 @@
 #!/usr/bin/env php
 <?php
+date_default_timezone_set('America/Chicago');
 
 for ($t=0;$t<3;$t++) {
 	echo PHP_EOL;
 }
 
 include("bootstrap.php");
+newrelic_background_job ();
 use Monolog\Logger;
 use Monolog\Handler\StreamHandler;
 use Sly\PushOver\Model\Push;
@@ -24,12 +26,15 @@ $job = $pheanstalk->reserve();
 //echo $job->getData();
 
 do {
-//var_dump($pheanstalk->peek($pheanstalk->peekDelayed()->getId()));
+	//var_dump($pheanstalk->peek($pheanstalk->peekDelayed()->getId()));
 	$delay = 3;
 	$diff = 3;
 
 	$jobObj = json_decode($job->getData());
 
+	if ($jobObj->account == "support.groupon.com") {
+		$jobObj->account = "groupon.zendesk.com";
+	}
 
 	echo "Starting: ". $jobObj->account." : ".$jobObj->id." | ";
 
@@ -57,9 +62,6 @@ do {
 		goto c;
 	}
 
-	if ($jobObj->account == "support.groupon.com") {
-		$jobObj->account = "groupon.zendesk.com";
-	}
 	$user = $desks[$jobObj->account]['api_user'];
 	$pass = $desks[$jobObj->account]['api_key'];
 	b:
@@ -73,16 +75,23 @@ do {
 
 	if ($response->code ==429) {
 		$delay = $response->headers["Retry-After"];
+
+		$skipThese[time() + $delay] = $jobObj->account;
 		$pheanstalk->release($job, 2500, abs($delay));
-
-		$skipThese[time() + $response->headers["Retry-After"]] = $jobObj->account;
-
 		echo " Releasing ".PHP_EOL;
+
 		//  echo " Waiting: ".$response->headers["Retry-After"].PHP_EOL;
 		//  sleep($response->headers["Retry-After"]);
 		goto c;
 	}
 	elseif ($response->code == 404) {
+	$dbName = str_replace(".", "-", $jobObj->account) ;
+	$db = $m-> $dbName;
+	// var_dump($db);die(PHP_EOL);
+	$collection = $db->tickets;
+
+		$newdata = array('$set' => array("status" => "deleted"));
+		$collection->update(array("id"=>$jobObj->id),$newdata);
 		echo PHP_EOL;
 		$pheanstalk->delete($job);
 		goto c;
@@ -116,7 +125,6 @@ do {
 
 		if ($response->code ==429) {
 			$delay = $response->headers["Retry-After"];
-			$pheanstalk->release($job, 2500, abs($delay));
 
 			$skipThese[time() + $delay] = $jobObj->account;
 			$pheanstalk->release($job, 2500, abs($delay));
@@ -252,12 +260,26 @@ do {
 
 
 	// settype($jobObj->account, "string");
+	
+
 	$dbName = str_replace(".", "-", $jobObj->account) ;
 	$db = $m-> $dbName;
 	// var_dump($db);die(PHP_EOL);
 	$collection = $db->tickets;
 
-	if ($collection->update(array("id"=>$MongoTicket->id),$MongoTicket, array("upsert"=>true))) {
+z:
+try {
+$qwe = $collection->update(array("id"=>$MongoTicket->id),$MongoTicket, array("upsert"=>true));
+}
+catch (MongoCursorException $e) {
+$ABclient->notifyOnException($e);
+	echo ".";
+    sleep (10);
+    goto z;
+}
+
+//var_dump($qwe);die(PHP_EOL);
+	if ($qwe) {
 		echo "Saved".PHP_EOL;
 
 

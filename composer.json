@@ -9,6 +9,8 @@
     "monolog/monolog": "1.7.*@dev",
     "sly/pushover": "1.0.4",
     "jlogsdon/cli": "dev-master",
-    "simplon/config": "dev-master"
+    "simplon/config": "dev-master",
+"dbtlr/php-airbrake": "dev-master",
+"rohea/file-storage": "dev-master"
       }
 }
