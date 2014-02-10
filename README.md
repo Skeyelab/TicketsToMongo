@@ -31,6 +31,10 @@ Installation
 
 5.  Edit config.php
 
+6.  Add the following line to your (or whomever's) crontab:
+
+    `* * * * * cd /path/to/project && php jobby.php 1>> /dev/null 2>&1`
+
 
 
 Usage 
