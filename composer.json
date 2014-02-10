@@ -10,8 +10,8 @@
     "sly/pushover": "1.0.4",
     "jlogsdon/cli": "dev-master",
     "simplon/config": "dev-master",
-"dbtlr/php-airbrake": "dev-master",
-"rohea/file-storage": "dev-master",
-"hellogerard/jobby": "dev-master"
-      }
+    "dbtlr/php-airbrake": "dev-master",
+    "rohea/file-storage": "dev-master",
+    "hellogerard/jobby": "dev-master"
+  }
 }
